@@ -105,7 +105,7 @@ sentences = function (text, user_options) {
 
             continue;
         }
-        if (endsWithChar(words[i], "\"") || endsWithChar(words[i], "”")) {  words[i] = words[i].slice(0, -1); }
+        if (endsWithChar(words[i], "\"") || endsWithChar(words[i], "”")) { words[i] = words[i].slice(0, -1); }
 
         if (endsWithChar(words[i], '.')) {
             if (i + 1 < L) {
@@ -145,7 +145,9 @@ sentences = function (text, user_options) {
         }
     }
 
-    if (current.length) { sentences.push(current); }
+    if (current.length) { 
+        sentences.push(current); 
+    }
     var result = [];
     var sentence = "";
 
@@ -206,22 +208,41 @@ function formatSentence(sentence, callback) {
     return callback(sentence)
 }
 
-function getBestSentence(paragraph, sentences_dict, callback) {
+function arrayContains(a, object) {
+    for (var i = 0; i < a.length; i++) {
+        if (a[i] == object) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function getBestSentence(paragraph, sentences_dict, sentenceCount, callback) {
     splitContentToSentences(paragraph, function (sentences) {
         if (!sentences) return ''
-        if (sentences.length < 2) return ''
-
-        var best_sentence = '', max_value = 0, strip_s, sentence, s
-        for (s in sentences) {
-            sentence = sentences[s]
-            formatSentence(sentence, function (strip_s) {
-                if (strip_s && sentences_dict[strip_s] > max_value) {
-                    max_value = sentences_dict[strip_s]
-                    best_sentence = sentence
-                }
-            })
+        if (sentences.length < sentenceCount) return ''
+        var best_sentences = new Array();
+        for (var i = 0; i < sentenceCount; i++) {
+            var best_sentence = '', max_value = 0, strip_s, sentence, s
+            for (s in sentences) {
+                sentence = sentences[s]
+                formatSentence(sentence, function (strip_s) {
+                    if (strip_s && sentences_dict[strip_s] > max_value) {
+                        if (!arrayContains(best_sentences, sentence)) {
+                            max_value = sentences_dict[strip_s];
+                            best_sentence = sentence;
+                        }
+                    }
+                })
+            }
+            best_sentences.push(best_sentence)
         }
-        callback(best_sentence)
+        var bestSentencesString = '';
+        for (var i = 0; i < best_sentences.length; i++) {
+            bestSentencesString = bestSentencesString + best_sentences[i] + ' ';
+        }
+
+        callback(bestSentencesString)
     })
 }
 
@@ -242,7 +263,7 @@ function getSortedSentences(paragraph, sentences_dict, n, callback) {
                 }
             })
         })
-        
+
         sentence_scores = _.sortBy(sentence_scores, function (sentence_score) { return -(sentence_score.score) })
 
         if (sentence_scores.length < n || n === 0) { n = sentence_scores.length }
@@ -294,13 +315,13 @@ function getSentencesRanks(content, callback, sentences_dict) {
     })
 }
 
-summarize = function (title, content, callback, sentences_dict) {
+summarize = function (title, content, sentenceCount, callback, sentences_dict) {
     var summary = [], paragraphs = [], sentence = '', err = false
     getSentencesRanks(content, function (dict) {
         splitContentToParagraphs(content, function (paragraphs) {
 
             each(paragraphs, function (p) {
-                getBestSentence(p, dict, function (sentence) {
+                getBestSentence(p, dict, sentenceCount, function (sentence) {
                     if (sentence) summary.push(sentence)
                 })
             })
@@ -329,7 +350,7 @@ getSortedSentences = function (content, n, callback, sentences_dict) {
 
 var abbreviations = new Array();
 var abbreviationArray = new Array();
-var abbreviationString =  getText("\\abbreviations\\german.txt");
+var abbreviationString = getText("\\abbreviations\\german.txt");
 abbreviationArray = abbreviationString.split(",");
 
 setAbbreviations = function (abbr) {
@@ -611,7 +632,7 @@ var title = ""
 var content = getText("\\content.txt");
 content = content.replace(/<(?:.|\n)*?>/gm, '');
 
-summarize(title, content, function (err, summary) {
+summarize(title, content, 2, function (err, summary) {
     originallength = title.length + content.length
     summarylength = summary.length
     summaryratio = (100 - (100 * (summarylength / (title.length + content.length))))
